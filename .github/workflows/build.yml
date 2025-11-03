@@ -1,10 +1,7 @@
 name: Build APK with Buildozer
 
 on:
-  # Permite rodar manualmente pelo botão "Run workflow"
   workflow_dispatch:
-
-  # Roda automaticamente quando houver push na branch main
   push:
     branches: [ "main" ]
 
@@ -13,10 +10,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Fazer checkout do código
-      uses: actions/checkout@v3
+    - name: Checkout do código
+      uses: actions/checkout@v4
 
-    - name: 🧰 Instalar dependências do sistema
+    - name: Instalar dependências do sistema
       run: |
         sudo apt-get update
         sudo apt-get install -y \
@@ -26,22 +23,22 @@ jobs:
           libffi-dev libssl-dev \
           libltdl-dev
 
-    - name: 🐍 Instalar Buildozer e dependências Python
+    - name: Instalar Buildozer e dependências Python
       run: |
         python3 -m pip install --upgrade pip
         pip install cython==0.29.36
         pip install buildozer==1.5.0
         pip install virtualenv
 
-    - name: 🧱 Criar ambiente virtual
+    - name: Criar ambiente virtual
       run: |
         virtualenv venv
         source venv/bin/activate
         pip install --upgrade pip
         pip install buildozer
 
-    - name: 📦 Habilitar cache para acelerar builds
-      uses: actions/cache@v3
+    - name: Habilitar cache para acelerar builds
+      uses: actions/cache@v4
       with:
         path: |
           ~/.buildozer
@@ -50,19 +47,18 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-buildozer-cache
 
-    - name: 🚀 Compilar APK Debug
+    - name: Compilar APK Debug
       run: |
         source venv/bin/activate
         buildozer android debug
 
-    - name: 🚀 Compilar APK Release (unsigned)
+    - name: Compilar APK Release (unsigned)
       run: |
         source venv/bin/activate
         buildozer android release
 
-    - name: 📤 Upload dos APKs como artefatos
-      uses: actions/upload-artifact@v3
+    - name: Upload dos APKs como artefatos
+      uses: actions/upload-artifact@v4
       with:
         name: APKs-Gerados
-        path: |
-          bin/*.apk
+        path: bin/*.apk
