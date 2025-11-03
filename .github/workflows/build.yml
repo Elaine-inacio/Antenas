@@ -1,47 +1,68 @@
-name: Build APK
+name: Build APK with Buildozer
 
 on:
+  # Permite rodar manualmente pelo botão "Run workflow"
+  workflow_dispatch:
+
+  # Roda automaticamente quando houver push na branch main
   push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
+    branches: [ "main" ]
 
 jobs:
   build:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
 
     steps:
-    # 1️⃣ Pega o código do repo
-    - uses: actions/checkout@v3
+    - name: 📥 Fazer checkout do código
+      uses: actions/checkout@v3
 
-    # 2️⃣ Configura Python
-    - name: Setup Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.10'
-
-    # 3️⃣ Instala dependências do sistema
-    - name: Install system dependencies
+    - name: 🧰 Instalar dependências do sistema
       run: |
-        sudo apt update
-        sudo apt install -y \
-          python3-venv git zip unzip openjdk-11-jdk \
-          zlib1g-dev libncurses5-dev libncurses6 libstdc++6 \
-          libffi-dev libssl-dev libtinfo6 \
-          autoconf automake libtool pkg-config m4 build-essential
-        # Link simbólico para evitar erro libtinfo5
-        sudo ln -s /lib/x86_64-linux-gnu/libtinfo.so.6 /lib/x86_64-linux-gnu/libtinfo.so.5 || true
+        sudo apt-get update
+        sudo apt-get install -y \
+          python3 python3-pip python3-setuptools python3-dev \
+          git zip unzip openjdk-17-jdk \
+          autoconf automake libtool \
+          libffi-dev libssl-dev \
+          libltdl-dev
 
-    # 4️⃣ Cria venv e instala Buildozer + Cython
-    - name: Setup Buildozer
+    - name: 🐍 Instalar Buildozer e dependências Python
       run: |
-        python3 -m venv venv
+        python3 -m pip install --upgrade pip
+        pip install cython==0.29.36
+        pip install buildozer==1.5.0
+        pip install virtualenv
+
+    - name: 🧱 Criar ambiente virtual
+      run: |
+        virtualenv venv
         source venv/bin/activate
         pip install --upgrade pip
-        pip install buildozer cython
+        pip install buildozer
 
-    # 5️⃣ Build APK
-    - name: Build APK
+    - name: 📦 Habilitar cache para acelerar builds
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.buildozer
+          ~/.cache/pip
+        key: ${{ runner.os }}-buildozer-cache
+        restore-keys: |
+          ${{ runner.os }}-buildozer-cache
+
+    - name: 🚀 Compilar APK Debug
       run: |
         source venv/bin/activate
         buildozer android debug
+
+    - name: 🚀 Compilar APK Release (unsigned)
+      run: |
+        source venv/bin/activate
+        buildozer android release
+
+    - name: 📤 Upload dos APKs como artefatos
+      uses: actions/upload-artifact@v3
+      with:
+        name: APKs-Gerados
+        path: |
+          bin/*.apk
