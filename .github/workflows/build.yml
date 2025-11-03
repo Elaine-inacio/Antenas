@@ -1,20 +1,36 @@
+name: Build APK
+
 on:
   push:
     branches: [ main ]
 
 jobs:
   build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Build APK
-        uses: digreatbrian/buildozer-action@v2
-        with:
-          python-version: 3.8
-          buildozer-cmd: buildozer -v android debug
+    runs-on: ubuntu-24.04
 
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: package
-          path: ./bin/*.apk
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+
+    - name: Install dependencies
+      run: |
+        sudo apt update
+        sudo apt install -y python3-venv git zip unzip openjdk-11-jdk zlib1g-dev libncurses5-dev libncurses6 libstdc++6 libffi-dev libssl-dev libtinfo6
+        sudo ln -s /lib/x86_64-linux-gnu/libtinfo.so.6 /lib/x86_64-linux-gnu/libtinfo.so.5 || true
+
+    - name: Create virtualenv
+      run: |
+        python3 -m venv venv
+        source venv/bin/activate
+        pip install --upgrade pip
+        pip install buildozer
+
+    - name: Build APK
+      run: |
+        source venv/bin/activate
+        buildozer android debug
+
