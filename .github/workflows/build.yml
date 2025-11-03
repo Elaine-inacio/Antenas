@@ -3,34 +3,44 @@ name: Build APK
 on:
   push:
     branches: [ main ]
+  pull_request:
+    branches: [ main ]
 
 jobs:
   build:
     runs-on: ubuntu-24.04
 
     steps:
+    # 1. Pega o código do repo
     - uses: actions/checkout@v3
 
-    - name: Set up Python
+    # 2. Configura Python
+    - name: Setup Python
       uses: actions/setup-python@v5
       with:
         python-version: '3.10'
 
-    - name: Install dependencies
+    # 3. Instala dependências do sistema
+    - name: Install system dependencies
       run: |
         sudo apt update
-        sudo apt install -y python3-venv git zip unzip openjdk-11-jdk zlib1g-dev libncurses5-dev libncurses6 libstdc++6 libffi-dev libssl-dev libtinfo6
+        sudo apt install -y \
+          python3-venv git zip unzip openjdk-11-jdk \
+          zlib1g-dev libncurses5-dev libncurses6 libstdc++6 \
+          libffi-dev libssl-dev libtinfo6
+        # Cria link simbólico para libtinfo5
         sudo ln -s /lib/x86_64-linux-gnu/libtinfo.so.6 /lib/x86_64-linux-gnu/libtinfo.so.5 || true
 
-    - name: Create virtualenv
+    # 4. Cria venv e instala Buildozer + Cython
+    - name: Setup Buildozer
       run: |
         python3 -m venv venv
         source venv/bin/activate
         pip install --upgrade pip
-        pip install buildozer
+        pip install buildozer cython
 
+    # 5. Inicializa Buildozer e gera APK
     - name: Build APK
       run: |
         source venv/bin/activate
         buildozer android debug
-
