@@ -11,27 +11,28 @@ jobs:
     runs-on: ubuntu-24.04
 
     steps:
-    # 1. Pega o código do repo
+    # 1️⃣ Pega o código do repo
     - uses: actions/checkout@v3
 
-    # 2. Configura Python
+    # 2️⃣ Configura Python
     - name: Setup Python
       uses: actions/setup-python@v5
       with:
         python-version: '3.10'
 
-    # 3. Instala dependências do sistema
+    # 3️⃣ Instala dependências do sistema
     - name: Install system dependencies
       run: |
         sudo apt update
         sudo apt install -y \
           python3-venv git zip unzip openjdk-11-jdk \
           zlib1g-dev libncurses5-dev libncurses6 libstdc++6 \
-          libffi-dev libssl-dev libtinfo6
-        # Cria link simbólico para libtinfo5
+          libffi-dev libssl-dev libtinfo6 \
+          autoconf automake libtool pkg-config m4 build-essential
+        # Link simbólico para evitar erro libtinfo5
         sudo ln -s /lib/x86_64-linux-gnu/libtinfo.so.6 /lib/x86_64-linux-gnu/libtinfo.so.5 || true
 
-    # 4. Cria venv e instala Buildozer + Cython
+    # 4️⃣ Cria venv e instala Buildozer + Cython
     - name: Setup Buildozer
       run: |
         python3 -m venv venv
@@ -39,7 +40,7 @@ jobs:
         pip install --upgrade pip
         pip install buildozer cython
 
-    # 5. Inicializa Buildozer e gera APK
+    # 5️⃣ Build APK
     - name: Build APK
       run: |
         source venv/bin/activate
