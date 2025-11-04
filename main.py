@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from kivy.app import App
 from kivy.uix.boxlayout import BoxLayout
 from kivy.properties import NumericProperty, StringProperty, ObjectProperty, ListProperty
@@ -15,9 +16,10 @@ from kivy.uix.widget import Widget
 import threading
 import math
 import json
+import traceback
 
 # =================================================================
-# Permissões Android para Bluetooth
+# Permissoes Android para Bluetooth
 # =================================================================
 if platform == 'android':
     try:
@@ -36,12 +38,12 @@ if platform == 'android':
                     Permission.WRITE_EXTERNAL_STORAGE,
                     Permission.READ_EXTERNAL_STORAGE
                 ])
-                print("🔹 Permissões solicitadas.")
+                print("Permissoes solicitadas.")
             except Exception as e:
-                print(f"Erro ao pedir permissões: {e}")
+                print(f"Erro ao pedir permissoes: {e}")
     except ImportError:
         def pedir_permissoes_bluetooth():
-            print("Funções de permissão Android não disponíveis.")
+            print("Funcoes de permissao Android nao disponiveis.")
         def primary_external_storage_path():
             return "/sdcard"
 else:
@@ -50,7 +52,7 @@ else:
     def primary_external_storage_path():
         return os.path.expanduser("~")
 
-# === Importações Bluetooth (ANDROID) ===
+# === Importacoes Bluetooth (ANDROID) ===
 try:
     from jnius import autoclass
     BluetoothAdapter = autoclass('android.bluetooth.BluetoothAdapter')
@@ -59,35 +61,29 @@ try:
     UUID = autoclass('java.util.UUID')
     print("Pyjnius e classes Bluetooth importadas com sucesso.")
 except ImportError:
-    print("Pyjnius não disponível. Rodando no modo Desktop.")
+    print("Pyjnius nao disponivel. Rodando no modo Desktop.")
     BluetoothAdapter = None
     BluetoothDevice = None
     BluetoothSocket = None
     UUID = None
 
 # -----------------------------------------------------------------
-# VARIÁVEIS GLOBAIS DE DADOS
+# VARIAVEIS GLOBAIS DE DADOS
 # -----------------------------------------------------------------
 angles_deg = []
 powers = []
 reference_power = None
 
-# --- Variáveis de Conexão Bluetooth ---
-BLUETOOTH_STATUS = StringProperty("Status: Desconectado.")
+# --- Variaveis de Conexao Bluetooth ---
 BLUETOOTH_DEVICE_NAME = "ESP32MotorControl"
 BLUETOOTH_UUID = "00001101-0000-1000-8000-00805F9B34FB"
 bluetooth_socket = None
-
-# --- Carregamento do KV ---
-if os.path.exists('motor.kv'):
-    Builder.load_file('motor.kv')
-
 
 # -----------------------------------------------------------------
 # WIDGET PERSONALIZADO PARA PLOTAGEM POLAR
 # -----------------------------------------------------------------
 class PolarPlotWidget(Widget):
-    """Widget personalizado que desenha um gráfico polar usando Kivy Graphics"""
+    """Widget personalizado que desenha um grafico polar usando Kivy Graphics"""
     
     angles = ListProperty([])
     powers = ListProperty([])
@@ -98,7 +94,7 @@ class PolarPlotWidget(Widget):
         self.bind(angles=self.update_plot, powers=self.update_plot)
     
     def update_plot(self, *args):
-        """Desenha o gráfico polar"""
+        """Desenha o grafico polar"""
         self.canvas.clear()
         
         if len(self.angles) < 2 or len(self.powers) < 2:
@@ -109,7 +105,7 @@ class PolarPlotWidget(Widget):
             Color(0.09, 0.10, 0.12, 1)
             Rectangle(pos=self.pos, size=self.size)
             
-            # Configurações
+            # Configuracoes
             center_x = self.x + self.width / 2
             center_y = self.y + self.height / 2
             radius = min(self.width, self.height) * 0.35
@@ -119,13 +115,13 @@ class PolarPlotWidget(Widget):
             min_power = min(self.powers) if self.powers else 0
             power_range = max_power - min_power if max_power != min_power else 1
             
-            # Círculos de grade (3 círculos)
+            # Circulos de grade (3 circulos)
             Color(0.3, 0.3, 0.3, 0.5)
             for i in range(1, 4):
                 r = radius * i / 3
                 Ellipse(pos=(center_x - r, center_y - r), size=(r * 2, r * 2))
             
-            # Linhas radiais (12 linhas - a cada 30°)
+            # Linhas radiais (12 linhas - a cada 30 graus)
             Color(0.3, 0.3, 0.3, 0.5)
             for angle in range(0, 360, 30):
                 rad = math.radians(angle)
@@ -136,12 +132,12 @@ class PolarPlotWidget(Widget):
             # Prepara os pontos para plotagem
             points = []
             for i, angle in enumerate(self.angles):
-                # Normaliza a potência (0 a 1)
+                # Normaliza a potencia (0 a 1)
                 normalized = (self.powers[i] - min_power) / power_range
                 r = radius * normalized
                 
-                # Converte ângulo (0° = Sul, sentido horário)
-                # Kivy: 0° = Leste, sentido anti-horário
+                # Converte angulo (0 graus = Sul, sentido horario)
+                # Kivy: 0 graus = Leste, sentido anti-horario
                 rad = math.radians(90 - angle)
                 
                 x = center_x + r * math.cos(rad)
@@ -152,9 +148,8 @@ class PolarPlotWidget(Widget):
             if len(points) >= 4:
                 points.extend(points[0:2])
                 
-                # Desenha a área preenchida
+                # Desenha a area preenchida
                 Color(0.03, 0.48, 0.64, 0.3)
-                # Para preencher, precisamos triangular - simplificado aqui
                 
                 # Desenha a linha
                 Color(0.03, 0.48, 0.64, 1)
@@ -176,13 +171,13 @@ class BluetoothScreen(Screen, BoxLayout):
         """Busca o dispositivo pareado e tenta conectar."""
         
         if platform != 'android' or BluetoothAdapter is None:
-            message = "Bluetooth só funciona no Android."
+            message = "Bluetooth so funciona no Android."
             self.show_popup_message(message)
             return
             
         adapter = BluetoothAdapter.getDefaultAdapter()
         if not adapter or not adapter.isEnabled():
-            message = "Bluetooth Desabilitado. Habilite nas Configurações."
+            message = "Bluetooth Desabilitado. Habilite nas Configuracoes."
             self.show_popup_message(message)
             return
 
@@ -195,8 +190,8 @@ class BluetoothScreen(Screen, BoxLayout):
                 break
 
         if target_device is None:
-            message = f"Dispositivo '{BLUETOOTH_DEVICE_NAME}' não encontrado na lista de pareados."
-            self.bluetooth_status = "Status: Dispositivo não encontrado."
+            message = f"Dispositivo '{BLUETOOTH_DEVICE_NAME}' nao encontrado na lista de pareados."
+            self.bluetooth_status = "Status: Dispositivo nao encontrado."
             self.show_popup_message(message)
             return
         
@@ -207,7 +202,7 @@ class BluetoothScreen(Screen, BoxLayout):
         connect_thread.start()
 
     def _attempt_connection(self, target_device):
-        """Função que executa a tentativa de conexão (em uma thread separada)."""
+        """Funcao que executa a tentativa de conexao (em uma thread separada)."""
         global bluetooth_socket
 
         uuid_obj = UUID.fromString(BLUETOOTH_UUID)
@@ -222,23 +217,21 @@ class BluetoothScreen(Screen, BoxLayout):
             return
 
         try:
-            message = "Iniciando Conexão..."
+            message = "Iniciando Conexao..."
             Clock.schedule_once(lambda dt: self.show_popup_message(message), 0)
             bluetooth_socket.connect()
             
             Clock.schedule_once(lambda dt: setattr(self, 'bluetooth_status', "Status: CONECTADO!"), 0)
-            Clock.schedule_once(lambda dt: self.show_popup_message("Conexão Bluetooth Estabelecida com Sucesso!"), 0)
-            
-            Clock.schedule_once(lambda dt: setattr(self.manager.get_screen('motor_control').ids.control_button, 'disabled', False), 0)
+            Clock.schedule_once(lambda dt: self.show_popup_message("Conexao Bluetooth Estabelecida com Sucesso!"), 0)
 
             read_thread = threading.Thread(target=self.read_bluetooth_data, daemon=True)
             read_thread.start()
             print("Thread de leitura Bluetooth iniciada.")
 
         except Exception as e:
-            message = f"ERRO de Conexão: {e}"
+            message = f"ERRO de Conexao: {e}"
             Clock.schedule_once(lambda dt: self.show_popup_message(message), 0)
-            Clock.schedule_once(lambda dt: setattr(self, 'bluetooth_status', "Status: Falha na Conexão."), 0)
+            Clock.schedule_once(lambda dt: setattr(self, 'bluetooth_status', "Status: Falha na Conexao."), 0)
             print(message)
             try:
                 bluetooth_socket.close()
@@ -247,7 +240,7 @@ class BluetoothScreen(Screen, BoxLayout):
             bluetooth_socket = None
             
     def read_bluetooth_data(self):
-        """Thread responsável por ler dados do socket Bluetooth."""
+        """Thread responsavel por ler dados do socket Bluetooth."""
         global bluetooth_socket
         if bluetooth_socket is None:
             return
@@ -274,7 +267,7 @@ class BluetoothScreen(Screen, BoxLayout):
 
         except Exception as e:
             print(f"ERRO na thread de leitura Bluetooth: {e}")
-            Clock.schedule_once(lambda dt: setattr(self, 'bluetooth_status', "Status: Conexão Perdida."), 0)
+            Clock.schedule_once(lambda dt: setattr(self, 'bluetooth_status', "Status: Conexao Perdida."), 0)
             bluetooth_socket = None
 
     def go_to_motor_control(self):
@@ -286,7 +279,7 @@ class BluetoothScreen(Screen, BoxLayout):
             self.show_popup_message("Conecte ao Bluetooth Primeiro!")
 
     def show_popup_message(self, message):
-        """Exibe o popup de confirmação."""
+        """Exibe o popup de confirmacao."""
         popup = ConfirmationPopup(message=message)
         popup.open()
 
@@ -294,7 +287,7 @@ class BluetoothScreen(Screen, BoxLayout):
 class MotorControlScreen(Screen, BoxLayout):
     posicao = NumericProperty(0)
     passo = NumericProperty(1)
-    pos_text = StringProperty("0°")
+    pos_text = StringProperty("0 graus")
     last_slider_value = NumericProperty(0)
 
     def __init__(self, **kwargs):
@@ -303,10 +296,10 @@ class MotorControlScreen(Screen, BoxLayout):
         self.atualizar_label()
 
     def atualizar_label(self, *args):
-        self.pos_text = f"{int(self.posicao)}°"
+        self.pos_text = f"{int(self.posicao)} graus"
         
     def _format_command(self, direction, step_value):
-        """Formata o comando no padrão '&[D][PPP]'"""
+        """Formata o comando no padrao '&[D][PPP]'"""
         step_value = max(0, min(999, int(step_value)))
         formatted_step = f"{step_value:03d}"
         command = f"&{direction}{formatted_step}"
@@ -328,7 +321,7 @@ class MotorControlScreen(Screen, BoxLayout):
             print(f"MODO DESKTOP/DESCONECTADO: Comando simulado: {data}")
 
     def send_step_command(self, direction):
-        """Envia o passo definido na direção especificada."""
+        """Envia o passo definido na direcao especificada."""
         current_pos = self.posicao
         step = self.passo
         
@@ -348,7 +341,7 @@ class MotorControlScreen(Screen, BoxLayout):
         self.last_slider_value = int(self.posicao)
 
     def register_power_command(self, potencia_input_ref, potencia_inserida_str):
-        """Registra potência e move motor."""
+        """Registra potencia e move motor."""
         try:
             float(potencia_inserida_str)
             valor_valido = True
@@ -358,7 +351,7 @@ class MotorControlScreen(Screen, BoxLayout):
         if valor_valido:
             new_pos = min(360, self.posicao + self.passo)
             if new_pos == self.posicao:
-                message = f"Valor Máximo Atingido"
+                message = f"Valor Maximo Atingido"
                 popup = ConfirmationPopup(message=message)
                 popup.open()
                 return
@@ -366,12 +359,12 @@ class MotorControlScreen(Screen, BoxLayout):
             self.send_bluetooth_data(command)
             self.adicionar_medida_do_app(potencia_input_ref, self.posicao, potencia_inserida_str)
         else:
-            message = f"Insira um Valor de Potência"
+            message = f"Insira um Valor de Potencia"
             popup = ConfirmationPopup(message=message)
             popup.open()
 
     def on_slider_touch_up(self):
-        """Calcula a diferença de posição do slider e envia o comando."""
+        """Calcula a diferenca de posicao do slider e envia o comando."""
         new_value = int(self.posicao)
         diff = abs(new_value - self.last_slider_value)
         
@@ -404,7 +397,7 @@ class MotorControlScreen(Screen, BoxLayout):
             else:
                 print("ERRO: Passo deve ser um valor inteiro entre 0 e 999.")
         except ValueError:
-            print("ERRO: Valor de Passo inválido.")
+            print("ERRO: Valor de Passo invalido.")
         
     def adicionar_medida_do_app(self, potencia_input_ref, posicao_em_graus, potencia_inserida_str):
         try:
@@ -418,11 +411,11 @@ class MotorControlScreen(Screen, BoxLayout):
         if angulo not in angles_deg:
             angles_deg.append(angulo)
             powers.append(potencia)
-            print(f"➡️ Medida adicionada: Ângulo {angulo}° -> Potência {potencia} dBm")
+            print(f"Medida adicionada: Angulo {angulo} graus -> Potencia {potencia} dBm")
         else:
             index = angles_deg.index(angulo)
             powers[index] = potencia
-            print(f"🔄 Medida atualizada: Ângulo {angulo}° -> Potência {potencia} dBm")
+            print(f"Medida atualizada: Angulo {angulo} graus -> Potencia {potencia} dBm")
         
         self.posicao = min(360, self.posicao + self.passo)
         self.atualizar_label()
@@ -432,15 +425,15 @@ class MotorControlScreen(Screen, BoxLayout):
         Clock.schedule_once(lambda dt: self.set_focus_on_input(potencia_input_ref), 0.05)
     
     def set_focus_on_input(self, input_widget):
-        """Função auxiliar para redefinir o foco."""
+        """Funcao auxiliar para redefinir o foco."""
         input_widget.focus = True
 
     def go_to_save_screen(self):
-        """Prepara os dados e navega para a tela de visualização."""
+        """Prepara os dados e navega para a tela de visualizacao."""
         global reference_power
         
         if len(powers) < 1:
-            print("⚠️ Adicione ao menos uma medida de potência.")
+            print("Adicione ao menos uma medida de potencia.")
             message = "Adicione ao menos uma medida!"
             popup = ConfirmationPopup(message=message)
             popup.open()
@@ -448,14 +441,14 @@ class MotorControlScreen(Screen, BoxLayout):
 
         reference_power = max(powers)
         
-        # Passa os dados para a tela de visualização
+        # Passa os dados para a tela de visualizacao
         save_screen = self.manager.get_screen('save_file_screen')
         save_screen.prepare_plot_data(angles_deg.copy(), powers.copy(), reference_power)
         
         self.manager.current = 'save_file_screen'
 
     def iniciar_novo_grafico(self):
-        """Limpa todos os dados globais e reseta a posição."""
+        """Limpa todos os dados globais e reseta a posicao."""
         global angles_deg, powers, reference_power
         
         steps_to_zero = int(self.posicao)
@@ -472,7 +465,7 @@ class MotorControlScreen(Screen, BoxLayout):
             command = self._format_command('L', steps_to_zero)
             self.send_bluetooth_data(command)
         
-        message = "NOVO GRÁFICO INICIADO:\nDados Limpos."
+        message = "NOVO GRAFICO INICIADO:\nDados Limpos."
         popup = ConfirmationPopup(message=message)
         popup.open()
 
@@ -481,14 +474,14 @@ class MotorControlScreen(Screen, BoxLayout):
 # CLASSE DE TELA DE SALVAMENTO
 # -----------------------------------------------------------------
 class SaveScreen(Screen, BoxLayout):
-    """Tela para visualizar o gráfico e salvar."""
+    """Tela para visualizar o grafico e salvar."""
     
     path = StringProperty("")
     filename_text = StringProperty("Diagrama_Radiacao.json")
     
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        # Define o caminho padrão
+        # Define o caminho padrao
         if platform == 'android':
             self.path = os.path.join(primary_external_storage_path(), 'Documents')
         else:
@@ -496,10 +489,10 @@ class SaveScreen(Screen, BoxLayout):
     
     def prepare_plot_data(self, angles, powers, ref_power):
         """Prepara os dados para plotagem."""
-        # Normaliza as potências
+        # Normaliza as potencias
         gains_dB = [p - ref_power for p in powers]
         
-        # Ordena por ângulo
+        # Ordena por angulo
         sorted_data = sorted(zip(angles, gains_dB))
         sorted_angles = [d[0] for d in sorted_data]
         sorted_gains = [d[1] for d in sorted_data]
@@ -514,12 +507,12 @@ class SaveScreen(Screen, BoxLayout):
         global angles_deg, powers, reference_power
         
         if not filename:
-            message = "Nome do arquivo não pode ser vazio."
+            message = "Nome do arquivo nao pode ser vazio."
             popup = ConfirmationPopup(message=message)
             popup.open()
             return
         
-        # Garante extensão .json
+        # Garante extensao .json
         if not filename.lower().endswith('.json'):
             filename = f"{filename}.json"
         
@@ -555,7 +548,7 @@ class SaveScreen(Screen, BoxLayout):
 # CLASSES AUXILIARES
 # -----------------------------------------------------------------
 class ConfirmationPopup(Popup):
-    """Popup simples para mostrar mensagens de confirmação."""
+    """Popup simples para mostrar mensagens de confirmacao."""
     def __init__(self, message, **kwargs):
         super().__init__(**kwargs)
         self.title = 'AVISO'
@@ -570,24 +563,43 @@ class ConfirmationPopup(Popup):
 # -----------------------------------------------------------------
 class MotorApp(App):
     def build(self):
-        self.title = "Controle de Motor Stepper"
-        
-        sm = ScreenManager()
+        try:
+            self.title = "Controle de Motor Stepper"
+            
+            # Carrega o arquivo KV
+            kv_file = 'motor.kv'
+            if os.path.exists(kv_file):
+                Builder.load_file(kv_file)
+                print(f"Arquivo {kv_file} carregado com sucesso!")
+            else:
+                print(f"ERRO: Arquivo {kv_file} nao encontrado!")
+                print(f"Diretorio atual: {os.getcwd()}")
+                print(f"Arquivos disponiveis: {os.listdir('.')}")
+            
+            sm = ScreenManager()
 
-        bluetooth_screen = BluetoothScreen(name='bluetooth_connection')
-        motor_control_screen = MotorControlScreen(name='motor_control')
-        save_screen = SaveScreen(name='save_file_screen')
-        
-        sm.add_widget(bluetooth_screen)
-        sm.add_widget(motor_control_screen)
-        sm.add_widget(save_screen)
-        
-        sm.current = 'bluetooth_connection'
+            bluetooth_screen = BluetoothScreen(name='bluetooth_connection')
+            motor_control_screen = MotorControlScreen(name='motor_control')
+            save_screen = SaveScreen(name='save_file_screen')
+            
+            sm.add_widget(bluetooth_screen)
+            sm.add_widget(motor_control_screen)
+            sm.add_widget(save_screen)
+            
+            sm.current = 'bluetooth_connection'
 
-        return sm
+            return sm
+            
+        except Exception as e:
+            print(f"ERRO CRITICO na inicializacao do app: {e}")
+            print(traceback.format_exc())
+            raise
 
 
 if __name__ == "__main__":
-    pedir_permissoes_bluetooth()
-    MotorControlScreen.passo.defaultvalue = 1
-    MotorApp().run()
+    try:
+        pedir_permissoes_bluetooth()
+        MotorApp().run()
+    except Exception as e:
+        print(f"ERRO FATAL: {e}")
+        print(traceback.format_exc())
