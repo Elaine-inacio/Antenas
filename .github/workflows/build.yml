@@ -5,14 +5,14 @@ on:
     branches: [ main ]
   pull_request:
     branches: [ main ]
-    
+
 jobs:
   build:
     runs-on: ubuntu-24.04
 
     steps:
     # 1️⃣ Pega o código do repo
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
     # 2️⃣ Configura Python
     - name: Setup Python
@@ -47,7 +47,7 @@ jobs:
         
     # 6️⃣ Upload do APK gerado
     - name: Upload APK
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: app-debug
         path: bin/*.apk
