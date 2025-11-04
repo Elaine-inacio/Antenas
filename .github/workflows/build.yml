@@ -25,11 +25,10 @@ jobs:
       run: |
         sudo apt update
         sudo apt install -y \
-          python3-venv git zip unzip openjdk-11-jdk \
+          python3-venv git zip unzip openjdk-17-jdk \
           zlib1g-dev libncurses5-dev libncurses6 libstdc++6 \
           libffi-dev libssl-dev libtinfo6 \
           autoconf automake libtool pkg-config m4 build-essential
-        # Link simbólico para evitar erro libtinfo5
         sudo ln -s /lib/x86_64-linux-gnu/libtinfo.so.6 /lib/x86_64-linux-gnu/libtinfo.so.5 || true
 
     # 4️⃣ Cria venv e instala Buildozer + Cython
@@ -45,3 +44,10 @@ jobs:
       run: |
         source venv/bin/activate
         buildozer android debug
+        
+    # 6️⃣ Upload do APK gerado
+    - name: Upload APK
+      uses: actions/upload-artifact@v3
+      with:
+        name: app-debug
+        path: bin/*.apk
