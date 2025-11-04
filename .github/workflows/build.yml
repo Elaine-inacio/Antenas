@@ -28,26 +28,62 @@ jobs:
           python3-venv git zip unzip openjdk-17-jdk \
           zlib1g-dev libncurses5-dev libncurses6 libstdc++6 \
           libffi-dev libssl-dev libtinfo6 \
-          autoconf automake libtool pkg-config m4 build-essential
+          autoconf automake libtool pkg-config m4 build-essential \
+          libltdl-dev ccache
         sudo ln -s /lib/x86_64-linux-gnu/libtinfo.so.6 /lib/x86_64-linux-gnu/libtinfo.so.5 || true
 
-    # 4️⃣ Cria venv e instala Buildozer + Cython
+    # 4️⃣ Cache do Buildozer para acelerar builds
+    - name: Cache Buildozer
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.buildozer
+          .buildozer
+        key: buildozer-${{ hashFiles('buildozer.spec') }}
+        restore-keys: |
+          buildozer-
+
+    # 5️⃣ Cria venv e instala Buildozer + Cython
     - name: Setup Buildozer
       run: |
         python3 -m venv venv
         source venv/bin/activate
-        pip install --upgrade pip
-        pip install buildozer cython
+        pip install --upgrade pip wheel setuptools
+        pip install buildozer==1.5.0 cython==0.29.36
 
-    # 5️⃣ Build APK
+    # 6️⃣ Cria imagens placeholder se não existirem
+    - name: Create placeholder images
+      run: |
+        if [ ! -f Icon.png ]; then
+          echo "Creating Icon.png placeholder..."
+          convert -size 512x512 xc:blue -gravity center -pointsize 72 -fill white -annotate +0+0 "A" Icon.png || true
+        fi
+        if [ ! -f Splash.png ]; then
+          echo "Creating Splash.png placeholder..."
+          convert -size 720x1280 xc:blue -gravity center -pointsize 120 -fill white -annotate +0+0 "Antenas" Splash.png || true
+        fi
+
+    # 7️⃣ Build APK com log detalhado
     - name: Build APK
       run: |
         source venv/bin/activate
-        buildozer android debug
-        
-    # 6️⃣ Upload do APK gerado
-    - name: Upload APK
+        # Aceita licenças do Android SDK automaticamente
+        yes | buildozer android debug 2>&1 | tee build.log
+      continue-on-error: false
+      
+    # 8️⃣ Upload do log completo em caso de erro
+    - name: Upload build log
+      if: always()
       uses: actions/upload-artifact@v4
       with:
-        name: app-debug
+        name: build-log
+        path: build.log
+        
+    # 9️⃣ Upload do APK gerado
+    - name: Upload APK
+      if: success()
+      uses: actions/upload-artifact@v4
+      with:
+        name: app-debug-apk
         path: bin/*.apk
+        if-no-files-found: error
