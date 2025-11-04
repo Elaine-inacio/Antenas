@@ -4,7 +4,7 @@
 title = Antenas
 
 # (str) Package name
-package.name = Antenasapp
+package.name = antenasapp
 
 # (str) Package domain (needed for android/ios packaging)
 package.domain = org.elaineinacio
@@ -13,34 +13,23 @@ package.domain = org.elaineinacio
 source.dir = .
 
 # (list) Source files to include (let empty to include all the files)
-source.include_exts = py,png,jpg,kv,atlas,ttf,wav,mp3
+source.include_exts = py,png,jpg,kv,atlas
 
 # (str) Application versioning (method 1)
 version = 0.1
 
 # (list) Application requirements
-# REMOVIDO: matplotlib (não funciona bem em Android)
-# Adicionado: jnius para Bluetooth
-requirements = python3,kivy==2.3.1,setuptools,pillow,plyer,pyjnius,https://github.com/kivymd/KivyMD/archive/master.zip,materialyoucolor,exceptiongroup,asyncgui,asynckivy
+# Versões específicas para evitar conflitos
+requirements = python3==3.10.14,kivy==2.3.0,setuptools,pillow,pyjnius
 
 # (str) Presplash of the application
-presplash.filename = %(source.dir)s/Splash.png
+#presplash.filename = %(source.dir)s/Splash.png
 
 # (str) Icon of the application
-icon.filename = %(source.dir)s/Icon.png
+#icon.filename = %(source.dir)s/Icon.png
 
 # (list) Supported orientations
 orientation = portrait
-
-# change the major version of python used by the app
-osx.python_version = 3
-
-# Kivy version to use
-osx.kivy_version = 2.3.1
-
-#
-# Android specific
-#
 
 # (bool) Indicate if the application should be fullscreen or not
 fullscreen = 0
@@ -48,11 +37,11 @@ fullscreen = 0
 # (string) Presplash background color (for android toolchain)
 android.presplash_color = #F6F6F6
 
-# (list) Permissions - CRÍTICO PARA BLUETOOTH E SALVAMENTO
+# (list) Permissions
 android.permissions = INTERNET,BLUETOOTH,BLUETOOTH_ADMIN,BLUETOOTH_CONNECT,BLUETOOTH_SCAN,ACCESS_FINE_LOCATION,ACCESS_COARSE_LOCATION,WRITE_EXTERNAL_STORAGE,READ_EXTERNAL_STORAGE
 
 # (int) Target Android API, should be as high as possible.
-android.api = 33
+android.api = 31
 
 # (int) Minimum API your APK / AAB will support.
 android.minapi = 21
@@ -70,16 +59,15 @@ android.private_storage = True
 android.accept_sdk_license = True
 
 # (list) The Android archs to build for
-android.archs = arm64-v8a, armeabi-v7a
+android.archs = arm64-v8a
 
 # (bool) enables Android auto backup feature (Android API >=23)
 android.allow_backup = True
 
-#
-# Python for android (p4a) specific
-#
+# (str) Bootstrap to use for android builds
+# p4a.bootstrap = sdl2
 
-# (str) python-for-android branch to use, defaults to master
+# (str) python-for-android branch to use
 p4a.branch = master
 
 
