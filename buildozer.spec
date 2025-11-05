@@ -16,11 +16,11 @@ source.dir = .
 source.include_exts = py,png,jpg,kv,atlas
 
 # (str) Application versioning (method 1)
-version = 0.1
+version = 0.2
 
 # (list) Application requirements
-# Versões específicas para evitar conflitos
-requirements = python3==3.10.14,kivy==2.3.0,setuptools,pillow,pyjnius
+# Versoes especificas para evitar conflitos
+requirements = python3==3.10.14,kivy==2.2.1,setuptools,pillow,pyjnius
 
 # (str) Presplash of the application
 #presplash.filename = %(source.dir)s/Splash.png
@@ -59,13 +59,13 @@ android.private_storage = True
 android.accept_sdk_license = True
 
 # (list) The Android archs to build for
-android.archs = arm64-v8a
+android.archs = arm64-v8a,armeabi-v7a
 
 # (bool) enables Android auto backup feature (Android API >=23)
 android.allow_backup = True
 
 # (str) Bootstrap to use for android builds
-# p4a.bootstrap = sdl2
+p4a.bootstrap = sdl2
 
 # (str) python-for-android branch to use
 p4a.branch = master
