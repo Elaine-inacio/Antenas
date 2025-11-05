@@ -10,7 +10,8 @@ version = 0.1
 
 requirements = python3,kivy,pyjnius,numpy,matplotlib,pillow
 p4a.fork = kivy
-p4a.branch = develop
+#p4a.branch = develop
+p4a.branch = master
 
 icon.filename = logo.png
 orientation = portrait
