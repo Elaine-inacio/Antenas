@@ -1,0 +1,406 @@
+#:kivy 2.3.1
+#:import os os 
+# -----------------------------------------------------------------------------------------------------------------------------
+#                                                  Tela 1: Conexão com o Bluetooth
+# -----------------------------------------------------------------------------------------------------------------------------
+<BluetoothScreen>:
+    name: 'bluetooth_connection'
+    orientation: "vertical"
+    padding: dp(20)
+    spacing: dp(20)
+    canvas.before:
+        Color:
+            rgba: 0.09, 0.10, 0.12, 1 #cinza escuro de fundo
+        Rectangle:
+            pos: self.pos
+            size: self.size
+
+    BoxLayout:
+        orientation: "vertical"
+        size_hint_y: None
+        height: dp(180)
+        padding: dp(16)
+        spacing: dp(10)
+        pos_hint: {'center_x': 0.5, 'center_y': 0.5} 
+        canvas.before:
+            Color:
+                rgba: 0.03, 0.48, 0.64, 1 # Azul das caixas
+            RoundedRectangle:
+                pos: self.pos
+                size: self.size
+                radius: [20]
+        Label:
+            text: "Conexão Bluetooth"
+            font_size: "28sp"
+            bold: True
+            color: 1, 1, 1, 1
+            size_hint_y: None
+            height: self.texture_size[1]
+        Label:
+            text: root.bluetooth_status
+            font_size: "14sp"
+            color: 1,1,1,1 
+            size_hint_y: None
+            height: self.texture_size[1]
+
+        BoxLayout:
+            orientation: "horizontal"
+            size_hint_y: None
+            height: dp(40)
+        
+            Widget:
+                size_hint_x: 0.8
+            Button:
+                text: "Buscar & Conectar" 
+                size_hint_y: None
+                width: dp(50) 
+                height: dp(44)
+                color: 1,1,1,1 
+                on_release: root.connect_bluetooth() 
+            Widget:
+                size_hint_x: 0.8
+        
+        
+        BoxLayout:
+            orientation: "horizontal"
+            size_hint_y: None
+            height: dp(40)
+            Widget:
+                size_hint_x: 0.5
+            Button:
+                text: "Iniciar"
+                size_hint_y: None
+                width: dp(50)
+                height: dp(44)
+                on_release: root.go_to_motor_control() 
+            Widget:
+                size_hint_x: 0.5
+
+
+# -----------------------------------------------------------------------------------------------------------------------------
+#                                                  Tela 2: Controle do Motor
+# -----------------------------------------------------------------------------------------------------------------------------
+
+<MotorControlScreen>:
+    name: 'motor_control'
+    
+    BoxLayout:
+        orientation: "vertical"
+        padding: dp(20)
+        spacing: dp(20)
+        canvas.before:
+            Color:
+                rgba: 0.09, 0.10, 0.12, 1 #cinza escuro de fundo
+            Rectangle:
+                pos: self.pos
+                size: self.size
+        
+        # Bloco 1: Diagrama de Radiação 
+        BoxLayout:
+            orientation: "vertical"
+            size_hint_y: None
+            height: dp(300)
+            padding: dp(16)
+            spacing: dp(10)
+            pos_hint: {'center_x': 0.5} 
+            canvas.before:
+                Color:
+                    rgba: 0.03, 0.48, 0.64, 1
+                RoundedRectangle:
+                    pos: self.pos
+                    size: self.size
+                    radius: [12]
+
+            Label:
+                text: "Diagrama de Radiação"
+                font_size: "22sp"
+                bold: True
+                color: 1, 1, 1, 1
+                size_hint_y: None
+                height: self.texture_size[1]
+
+
+            Label:
+                text: "Insira o Valor da Potência (dBm)"
+                font_size: "18sp"
+                color: 1, 1, 1, 1
+                size_hint_y: None
+                height: self.texture_size[1]
+
+            BoxLayout:
+                orientation: "horizontal"
+                size_hint_y: None
+                height: dp(40)
+                Widget:
+                    size_hint_x: 0.30
+                TextInput:
+                    id: potencia_input 
+                    hint_text: "Ex: -50.5"
+                    input_filter: 'float'
+                    multiline: False
+                    on_text_validate: 
+                        root.register_power_command(self, self.text) # Novo: Usa a função de comando
+                    size_hint_x: 0.7 
+                    background_color: 0.2, 0.2, 0.2, 1
+                    foreground_color: 1, 1, 1, 1
+                    font_size: '18sp' 
+                    padding: [dp(10), dp(10), dp(10), dp(10)] 
+                    cursor_color: 0.0, 0.6, 0.8, 1
+                Widget:
+                    size_hint_x: 0.30
+            
+            BoxLayout:
+                orientation: "horizontal"
+                size_hint_y: None
+                height: dp(40)
+                Widget:
+                    size_hint_x: 0.4
+                Button:
+                    text: "Registrar"
+                    size_hint_y: None
+                    width: dp(50)
+                    height: dp(44)
+                    color: 1,1,1,1
+                    # CRÍTICO: Substituindo adicionar_medida_do_app() pelo comando Bluetooth
+                    on_release: root.register_power_command(potencia_input, potencia_input.text) 
+                Widget:
+                    size_hint_x: 0.4
+
+            BoxLayout:
+                orientation: "horizontal"
+                size_hint_y: None
+                height: dp(40)
+                Widget:
+                    size_hint_x: 0.4
+                    
+                Button:
+                    text: "Visualizar"
+                    size_hint_y: None
+                    width: dp(30)
+                    height: dp(30)
+                    color: 1,1,1,1 
+                    on_release: root.preview_graph()
+                Button:
+                    text: "Salvar"
+                    size_hint_y: None
+                    width: dp(30)
+                    height: dp(30)
+                    color: 1,1,1,1 
+                    on_release: root.go_to_save_screen()
+                    
+                Widget:
+                    size_hint_x: 0.4
+
+        # Bloco 2: Controle do Motor
+        BoxLayout:
+            orientation: "vertical"
+            size_hint_y: None
+            height: dp(350)
+            padding: dp(16)
+            spacing: dp(12)
+            pos_hint: {'center_x': 0.5} 
+            canvas.before:
+                Color:
+                    rgba: 0.03, 0.48, 0.64, 1
+                RoundedRectangle:
+                    pos: self.pos
+                    size: self.size
+                    radius: [12]
+
+            Label:
+                text: "Ângulo da Antena"
+                font_size: "22sp"
+                bold: True
+                color: 1,1,1,1
+
+            
+            Label:
+                text: f"[color=ffffff][size=40sp][b]{root.pos_text}[/b][/size][/color]"
+                markup: True 
+                color: 1, 1, 1, 1 
+                size_hint_x: 1 
+                halign: 'center'
+
+            BoxLayout:
+                spacing: dp(10)
+                size_hint_y: None
+                height: dp(60)
+                Button:
+                    text: "-"
+                    font_size: "18sp"
+                    size_hint_x: None
+                    width: dp(50)
+                    # CRÍTICO: Substituindo diminuir() pelo comando Bluetooth de mover para a esquerda
+                    on_release: root.send_step_command('L') 
+                Slider:
+                    id: slider
+                    min: 0
+                    max: 360
+                    value: root.posicao
+                    on_value: root.slider_moved(self)
+                    # CRÍTICO: Adicionando on_touch_up para enviar o comando Bluetooth apenas ao soltar
+                    on_touch_up: root.on_slider_touch_up() 
+                Button:
+                    text: "+"
+                    font_size: "18sp"
+                    size_hint_x: None
+                    width: dp(50)
+                    # CRÍTICO: Substituindo aumentar() pelo comando Bluetooth de mover para a direita
+                    on_release: root.send_step_command('R')
+                
+            BoxLayout:
+                orientation: "horizontal"
+                size_hint_y: None
+                height: dp(44)
+                spacing: dp(8)
+                Label:
+                    text: "Passo: "
+                    size_hint_x: None
+                    width: dp(90)
+                    font_size: "18sp"
+                    halign: 'left'
+                    valign: 'middle'
+                    text_size: self.size
+                ToggleButton:
+                    text: "1°"
+                    group: "passo"
+                    state: "down"
+                    on_state:
+                        if self.state=='down': root.definir_passo(1)
+                ToggleButton:
+                    text: "5°"
+                    group: "passo"
+                    on_state:
+                        if self.state=='down': root.definir_passo(5)
+                ToggleButton:
+                    text: "10°"
+                    group: "passo"
+                    on_state:
+                        if self.state=='down': root.definir_passo(10)
+                ToggleButton:
+                    text: "15°"
+                    group: "passo"
+                    on_state:
+                        if self.state=='down': root.definir_passo(15)
+
+                    
+        BoxLayout:
+            orientation: "horizontal"
+            size_hint_y: None
+            height: dp(50)
+            padding: dp(16)
+            spacing: dp(12)
+            
+            Button:
+                text: "Voltar"
+                size_hint: (None, None)
+                width: dp(100)
+                height: dp(40)
+                font_size: '14sp'
+                background_normal: ''
+                background_color: 0.03, 0.48, 0.64, 1
+                on_release: root.manager.current = 'bluetooth_connection'
+                
+            Widget:
+                size_hint_x: 2 
+
+            Button:
+                text: "Reiniciar"
+                size_hint: (None, None)
+                width: dp(100)
+                height: dp(40)
+                font_size: '14sp'
+                background_normal: ''
+                background_color: 0.03, 0.48, 0.64, 1
+                on_release: root.limpa_dados()
+                
+
+# -----------------------------------------------------------------------------------------------------------------------------
+#                                                  Tela 3: Salvamento
+# -----------------------------------------------------------------------------------------------------------------------------
+<SaveScreen>:
+    name: 'save_file_screen'
+    orientation: 'vertical'
+    padding: dp(20)
+    spacing: dp(10)
+    
+    canvas.before:
+        Color:
+            rgba: 0.09, 0.10, 0.12, 1 
+        Rectangle:
+            pos: self.pos
+            size: self.size
+
+    BoxLayout:
+        orientation: "vertical"
+        size_hint_y: None
+        height: dp(800)
+        size_hint: 0.8, 0.9 
+        pos_hint: {'center_x': 0.5, 'center_y': 0.5}
+        padding: dp(16)
+        spacing: dp(10)
+            
+        canvas.before:
+            Color:
+                rgba: 0.03, 0.48, 0.64, 1
+            RoundedRectangle:
+                pos: self.pos
+                size: self.size
+                radius: [12]
+            
+        Label:
+            text: "Selecione a Pasta e"
+            font_size: "20sp"
+            size_hint_y: None
+            height: dp(30)
+            color: 1, 1, 1, 1
+        Label:
+            text: "Defina o Nome do Arquivo:"
+            font_size: "20sp"
+            size_hint_y: None
+            height: dp(30)
+            color: 1, 1, 1, 1
+        
+        TextInput:
+            id: filename_input
+            text: root.filename_text
+            height: dp(10)
+            size_hint_x: 1
+            multiline: False
+            background_color: 0.2, 0.2, 0.2, 1
+            foreground_color: 1, 1, 1, 1
+
+        Label:
+            text: "Exemplo: diagrama.pdf"
+            pos_hint: {'center_x': 0.5}
+            size_hint_x: None
+            width: dp(10)
+            height: dp(10)
+            color: 1, 1, 1, 1
+        
+        FileChooserIconView:
+            id: filechooser
+            path: root.path
+            height: dp(250)
+            dirselect: True # Permite selecionar apenas diretórios (pastas)
+            size_hint_y: 3 # Ocupa a maior parte do espaço
+            on_path: root.path = self.path 
+
+        BoxLayout:
+            size_hint_y: None
+            height: dp(50)
+            spacing: dp(10)
+            
+            Button:
+                text: "CANCELAR"
+                on_release: root.manager.current = 'motor_control'
+                
+            Button:
+                text: "SALVAR"
+                on_release: 
+                    root.save_file(filechooser.path, filename_input.text)
+                    # A função save_file é responsável por voltar para a tela 'motor_control'
+
+<ConfirmationPopup>:
+    title_align: 'center'
+    separator_height: dp(1)
