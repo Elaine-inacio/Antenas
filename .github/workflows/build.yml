@@ -1,97 +1,107 @@
 name: Build APK
 
 on:
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
 
 jobs:
-  build:
-    # Usando 'ubuntu-latest' para garantir a versão mais estável do runner
-    runs-on: ubuntu-latest
+  build:
+    runs-on: ubuntu-24.04
 
-    steps:
-    # 1️ Pega o código do repo
-    - uses: actions/checkout@v4
+    steps:
+    # 1️ Pega o código do repo
+    - uses: actions/checkout@v4
 
-    # 2️ Configura Python
-    - name: Setup Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.10'
+    # 2️ Configura Python
+    - name: Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
 
-    # 3️ Instala dependências do sistema (incluindo ImageMagick para placeholders)
-    - name: Install system dependencies
-      run: |
-        sudo apt update
-        sudo apt install -y \
-          python3-venv git zip unzip openjdk-17-jdk \
-          zlib1g-dev libncurses5-dev libncurses6 libstdc++6 \
-          libffi-dev libssl-dev libtinfo6 \
-          autoconf automake libtool pkg-config m4 build-essential \
-          libltdl-dev ccache imagemagick
-        sudo ln -s /lib/x86_64-linux-gnu/libtinfo.so.6 /lib/x86_64-linux-gnu/libtinfo.so.5 || true
+    # 3️ Instala dependências do sistema
+    - name: Install system dependencies
+      run: |
+        sudo apt update
+        sudo apt install -y \
+          python3-venv git zip unzip openjdk-17-jdk \
+          zlib1g-dev libncurses5-dev libncurses6 libstdc++6 \
+          libffi-dev libssl-dev libtinfo6 \
+          autoconf automake libtool pkg-config m4 build-essential \
+          libltdl-dev ccache
+        sudo ln -s /lib/x86_64-linux-gnu/libtinfo.so.6 /lib/x86_64-linux-gnu/libtinfo.so.5 || true
 
-    # 4️ Cache do Buildozer para acelerar builds
-    - name: Cache Buildozer
-      uses: actions/cache@v3
-      with:
-        path: |
-          ~/.buildozer
-          .buildozer
-        key: buildozer-${{ hashFiles('buildozer.spec') }}
-        restore-keys: |
-          buildozer-
+    # 4️ Cache do Buildozer para acelerar builds
+    - name: Cache Buildozer
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.buildozer
+          .buildozer
+        key: buildozer-${{ hashFiles('buildozer.spec') }}
+        restore-keys: |
+          buildozer-
 
-    # 5️ Cria venv e instala Buildozer + Cython
-    - name: Setup Buildozer
-      run: |
-        python3 -m venv venv
-        source venv/bin/activate
-        pip install --upgrade pip wheel setuptools
-        pip install buildozer==1.5.0 cython==0.29.36
+    # 5️ Cria venv e instala Buildozer + Cython
+    - name: Setup Buildozer
+      run: |
+        python3 -m venv venv
+        source venv/bin/activate
+        pip install --upgrade pip wheel setuptools
+        pip install buildozer==1.5.0 cython==0.29.36
 
-    # 6️ Cria imagens placeholder se não existirem
-    - name: Create placeholder images
-      run: |
-        # Usando 'convert' agora que ImageMagick está instalado
-        if [ ! -f Icon.png ]; then
-          echo "Creating Icon.png placeholder..."
-          convert -size 512x512 xc:blue -gravity center -pointsize 72 -fill white -annotate +0+0 "A" Icon.png
-        fi
-        if [ ! -f Splash.png ]; then
-          echo "Creating Splash.png placeholder..."
-          convert -size 720x1280 xc:blue -gravity center -pointsize 120 -fill white -annotate +0+0 "Antenas" Splash.png
-        fi
+    # 6️ Cria imagens placeholder se não existirem
+    - name: Create placeholder images
+      run: |
+        if [ ! -f Icon.png ]; then
+          echo "Creating Icon.png placeholder..."
+          convert -size 512x512 xc:blue -gravity center -pointsize 72 -fill white -annotate +0+0 "A" Icon.png || echo "ImageMagick not available, skipping icon"
+        fi
+        if [ ! -f Splash.png ]; then
+          echo "Creating Splash.png placeholder..."
+          convert -size 720x1280 xc:blue -gravity center -pointsize 120 -fill white -annotate +0+0 "Antenas" Splash.png || echo "ImageMagick not available, skipping splash"
+        fi
 
-    # 7️ Limpa execuções antigas para liberar espaço (O passo crucial para NumPy/Matplotlib) 🧹
-    - name: Clean previous builds to free up space
-      run: |
-        source venv/bin/activate
-        # Remove todos os caches e downloads antigos do buildozer
-        buildozer android clean
+    # 7️ Build APK com log detalhado
+    - name: Build APK
+      run: |
+        source venv/bin/activate
+        # Aceita licenças do Android SDK automaticamente
+        yes | buildozer android debug 2>&1 | tee build.log
+      continue-on-error: false
+      
+    # 8️ Upload do log completo em caso de erro
+    - name: Upload build log
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: build-log
+        path: build.log
+        
+    # 9️ Upload do APK gerado
+    - name: Upload APK
+      if: success()
+      uses: actions/upload-artifact@v4
+      with:
+        name: app-debug-apk
+        path: bin/*.apk
+        if-no-files-found: error
 
-    # 8️ Build APK com log detalhado
-    - name: Build APK
-      run: |
-        source venv/bin/activate
-        # Aceita licenças do Android SDK automaticamente
-        yes | buildozer android debug 2>&1 | tee build.log
-      
-    # 9️ Upload do log completo em caso de erro
-    - name: Upload build log
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: build-log
-        path: build.log
-        
-    # 🔟 Upload do APK gerado
-    - name: Upload APK
-      if: success()
-      uses: actions/upload-artifact@v4
-      with:
-        name: app-debug-apk
-        path: bin/*.apk
-        if-no-files-found: error
+- name: Cria venv e instala Buildozer + Cython
+  run: |
+    source venv/bin/activate
+    pip install buildozer cython
+
+- name: Limpa execuções antigas para liberar espaço 
+  run: |
+    source venv/bin/activate
+    buildozer clean
+
+- name: Roda Buildozer
+  run: |
+    source venv/bin/activate
+    buildozer android debug
+
+
+---
