@@ -12,7 +12,7 @@ requirements = python3,kivy,pyjnius,numpy,matplotlib,pillow
 p4a.fork = kivy
 p4a.branch = master
 
-icon.filename = logo.png
+icon.filename = logo2.png
 android.archs = arm64-v8a, armeabi-v7a
 
 orientation = portrait
