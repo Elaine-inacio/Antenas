@@ -70,7 +70,7 @@ jobs:
       run: |
         source venv/bin/activate
         # Remove todos os caches e downloads antigos do buildozer
-        buildozer clean
+        buildozer android clean
 
     # 8️ Build APK com log detalhado
     - name: Build APK
