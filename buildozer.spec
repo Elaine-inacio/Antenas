@@ -10,10 +10,11 @@ version = 0.1
 
 requirements = python3,kivy,pyjnius,numpy,matplotlib,pillow
 p4a.fork = kivy
-#p4a.branch = develop
 p4a.branch = master
 
 icon.filename = logo.png
+android.archs = arm64-v8a, armeabi-v7a
+
 orientation = portrait
 fullscreen = 0
 
@@ -31,7 +32,6 @@ android.minapi = 26
 android.ndk_api = 26
 android.ndk = 25b
 android.archs = arm64-v8a, armeabi-v7a
-android.ndk_path = /content/.buildozer/android/platform/android-ndk-r25b
 
 
 p4a.extra_env_vars = CFLAGS=-std=c++17
