@@ -19,45 +19,70 @@ from kivy.core.window import Window
 from kivy.properties import NumericProperty, StringProperty, ObjectProperty
 
 # -------------------------------------------------------------------------------------------------------------
-#                                          PERMISSÕES ANDROID PARA BLUETOOTH
+#                                           PERMISSÕES ANDROID PARA BLUETOOTH
 # -------------------------------------------------------------------------------------------------------------
+# Variáveis globais para as classes Android JNI
+BluetoothAdapter = None
+BluetoothDevice = None
+BluetoothSocket = None
+UUID = None
+
 if platform == 'android':
     try:
         from android.permissions import request_permissions, Permission # type: ignore
+        from jnius import autoclass # type: ignore
 
         def pedir_permissoes_bluetooth():
+            """Função para solicitar permissões de Bluetooth em tempo de execução."""
+            # BLUETOOTH_SCAN é importante se o alvo não estiver pareado.
+            # No buildozer.spec já tem BLUETOOTH_CONNECT e ACCESS_FINE_LOCATION
+            required_permissions = [
+                Permission.BLUETOOTH_CONNECT,
+                Permission.ACCESS_FINE_LOCATION,
+                Permission.BLUETOOTH_SCAN # Adicionado para robustez
+            ]
+            
             try:   
-                request_permissions([
-                    Permission.BLUETOOTH_CONNECT, # BLUETOOTH_CONNECT é essencial para pareados
-                    Permission.ACCESS_FINE_LOCATION
-                ])
+                request_permissions(required_permissions)
             except Exception as e:
-                message = "Erro ao pedir permissões: {e}"
+                message = f"Erro ao pedir permissões: {e}"
                 popup = ConfirmationPopup(message=message)
                 popup.open()
 
+        def initialize_bluetooth_classes():
+            """Tenta carregar as classes Java Bluetooth após a inicialização do Kivy."""
+            global BluetoothAdapter, BluetoothDevice, BluetoothSocket, UUID
+            try:
+                # Carregamento só acontece se platform == 'android' e jnius for importado
+                BluetoothAdapter = autoclass('android.bluetooth.BluetoothAdapter')
+                BluetoothDevice = autoclass('android.bluetooth.BluetoothDevice')
+                BluetoothSocket = autoclass('android.bluetooth.BluetoothSocket')
+                UUID = autoclass('java.util.UUID')
+                print("Bluetooth JNI classes loaded successfully.")
+                return True
+            except ImportError as e:
+                print(f"Jnius import error: {e}")
+                return False
+            except Exception as e:
+                print(f"Error loading Bluetooth JNI classes: {e}")
+                return False
+
     except ImportError:
-        pass
+        # Se jnius ou android.permissions não estiverem disponíveis (mesmo no Android, se o build falhar)
+        def pedir_permissoes_bluetooth():
+            pass
+        def initialize_bluetooth_classes():
+            return False
+            
 else:
-    # Define uma função dummy para plataformas não-Android (Desktop)
+    # Define funções dummy para plataformas não-Android (Desktop)
     def pedir_permissoes_bluetooth():
         pass
-
-# === Importações Bluetooth (ANDROID) ===
-try:
-    from jnius import autoclass # type: ignore
-    BluetoothAdapter = autoclass('android.bluetooth.BluetoothAdapter')
-    BluetoothDevice = autoclass('android.bluetooth.BluetoothDevice')
-    BluetoothSocket = autoclass('android.bluetooth.BluetoothSocket')
-    UUID = autoclass('java.util.UUID')
-except ImportError:
-    BluetoothAdapter = None
-    BluetoothDevice = None
-    BluetoothSocket = None
-    UUID = None
+    def initialize_bluetooth_classes():
+        return False
 
 # -------------------------------------------------------------------------------------------------------------
-#                                                   VARIÁVEIS
+#                                                     VARIÁVEIS
 # -------------------------------------------------------------------------------------------------------------
 
 angles_deg = []
@@ -79,12 +104,15 @@ class BluetoothScreen(Screen):
     
     def connect_bluetooth(self):
         """Busca o dispositivo pareado e tenta conectar."""
+        global BluetoothAdapter
         
-        # Checa a plataforma e as dependências
+        # 1. Checa a plataforma e se as classes foram carregadas
         if platform != 'android' or BluetoothAdapter is None:
-            message = "Bluetooth só funciona no Android."
+            message = "Bluetooth só funciona no Android ou classes JNI não carregadas. Verifique o buildozer.spec."
             self.show_popup_message(message)
             return
+            
+        # 2. Obtém e checa o Adaptador
         adapter = BluetoothAdapter.getDefaultAdapter()
         if not adapter or not adapter.isEnabled():
             message = "Bluetooth Desabilitado. Habilite nas Configurações."
@@ -95,10 +123,18 @@ class BluetoothScreen(Screen):
         target_device = None
         
         # Percorre a lista de dispositivos pareados
-        for device in adapter.getBondedDevices().toArray():
-            if device.getName() == BLUETOOTH_DEVICE_NAME:
-                target_device = device
-                break
+        try:
+            for device in adapter.getBondedDevices().toArray():
+                if device.getName() == BLUETOOTH_DEVICE_NAME:
+                    target_device = device
+                    break
+        except Exception as e:
+             # Isso pode ocorrer se a permissão BLUETOOTH_CONNECT não foi concedida.
+            message = f"ERRO: Não foi possível obter dispositivos pareados. Permissão negada? ({e})"
+            self.bluetooth_status = "Status: Erro de Permissão."
+            self.show_popup_message(message)
+            return
+
 
         if target_device is None:
             message = f"Dispositivo '{BLUETOOTH_DEVICE_NAME}' não encontrado na lista de pareados."
@@ -116,6 +152,13 @@ class BluetoothScreen(Screen):
     def _attempt_connection(self, target_device):
         """Função que executa a tentativa de conexão (em uma thread separada)."""
         global bluetooth_socket
+        global UUID
+        
+        if UUID is None: # Checa se a classe UUID foi carregada
+            Clock.schedule_once(lambda dt: self.show_popup_message("ERRO: Classes Bluetooth não inicializadas."), 0)
+            Clock.schedule_once(lambda dt: setattr(self, 'bluetooth_status', "Status: Falha de Inicialização."), 0)
+            return
+            
         uuid_obj = UUID.fromString(BLUETOOTH_UUID) # Cria o UUID
         
         # Tenta criar o socket RFCOMM (Bluetooth Clássico)
@@ -130,7 +173,7 @@ class BluetoothScreen(Screen):
         # Tenta conectar o socket
         try:
             message = "Iniciando Conexão..."
-            self.show_popup_message(message)
+            Clock.schedule_once(lambda dt: self.show_popup_message(message), 0)
             bluetooth_socket.connect() # ESTE É O BLOQUEANTE
             
             # Conexão bem-sucedida
@@ -141,8 +184,10 @@ class BluetoothScreen(Screen):
             Clock.schedule_once(lambda dt: setattr(self.manager.get_screen('motor_control').ids.control_button, 'disabled', False), 0)
 
             # INICIA A THREAD DE LEITURA (NOVA THREAD PARA RECEBIMENTO DE DADOS)
-            read_thread = threading.Thread(target=self.read_bluetooth_data, daemon=True)
-            read_thread.start()
+            # read_thread = threading.Thread(target=self.read_bluetooth_data, daemon=True)
+            # read_thread.start()
+            # NOTE: Você não incluiu a função read_bluetooth_data. Se for usá-la, descomente acima e a implemente.
+            # Por enquanto, vou comentar para não causar NameError.
 
         except Exception as e:
             # Erro de conexão (dispositivo não está pronto, fora do alcance, etc.)
@@ -150,24 +195,65 @@ class BluetoothScreen(Screen):
             Clock.schedule_once(lambda dt: self.show_popup_message(message), 0)
             Clock.schedule_once(lambda dt: setattr(self, 'bluetooth_status', "Status: Falha na Conexão."), 0)
             try:
-                bluetooth_socket.close()
+                if bluetooth_socket:
+                    bluetooth_socket.close()
             except:
                 pass
             bluetooth_socket = None
 
         except Exception as e:
+            # Captura a exceção de dentro do bloco try/except aninhado
             Clock.schedule_once(lambda dt: setattr(self, 'bluetooth_status', "Status: Conexão Perdida."), 0)
+            if bluetooth_socket:
+                try: bluetooth_socket.close()
+                except: pass
             bluetooth_socket = None
 
 
     # MÉTODOS DE MUDANÇA DE TELA 
     def go_to_motor_control(self):
         """Muda para a tela de controle do motor."""
-        if bluetooth_socket is not None or platform != 'android':
-            self.manager.current = 'motor_control'
+        # Permite avançar mesmo se não estiver conectado, apenas em ambientes desktop
+        # Se for Android, exige conexão
+        if platform == 'android' and bluetooth_socket is None:
+            self.show_popup_message("Conecte-se ao Bluetooth Antes de Avançar")
         else:
             self.manager.current = 'motor_control'
-            self.show_popup_message("Conecte-se ao Bluetooth Antes de Avançar")
+            
+    def read_bluetooth_data(self):
+        """
+        Função para ler dados do Bluetooth em uma thread separada.
+        Implementação básica para evitar que a thread de conexão falhe.
+        """
+        global bluetooth_socket
+        
+        if bluetooth_socket is None:
+            print("Socket Bluetooth não está ativo para leitura.")
+            return
+
+        try:
+            input_stream = bluetooth_socket.getInputStream()
+            while bluetooth_socket is not None:
+                # Checa se há bytes disponíveis para leitura
+                if input_stream.available() > 0:
+                    read_byte = input_stream.read()
+                    if read_byte != -1: # -1 indica fim do stream
+                        # Este é apenas um exemplo. Você deve implementar aqui 
+                        # o parser para o protocolo de comunicação (e.g., ler até um '\n')
+                        # Exemplo: Lendo um byte e imprimindo.
+                        char_read = chr(read_byte)
+                        print(f"Dado recebido: {char_read}") 
+                        # Se você precisar de lógica Kivy (popups/UI), use Clock.schedule_once
+
+        except Exception as e:
+            print(f"ERRO DE LEITURA BT: {e}")
+            Clock.schedule_once(lambda dt: self.manager.get_screen('bluetooth_connection').show_popup_message(f"Conexão Bluetooth Perdida: {e}"), 0)
+            # Tenta fechar o socket e resetar o status se a leitura falhar
+            if bluetooth_socket:
+                try: bluetooth_socket.close()
+                except: pass
+            bluetooth_socket = None
+            Clock.schedule_once(lambda dt: setattr(self, 'bluetooth_status', "Status: Desconectado."), 0)
 
 
     def show_popup_message(self, message):
@@ -517,10 +603,20 @@ class MotorControlScreen(Screen):
         except Exception as e:
             self.manager.get_screen('bluetooth_connection').show_popup_message(f"ERRO ao Gerar Preview: {e}")
             
+    # Adicionando um método de reset para o estado do motor
+    def reset_motor_position(self):
+        """Retorna a posição da antena para 0°."""
+        steps_to_zero = int(self.posicao)
+        if steps_to_zero > 0:
+            command = self._format_command('L', steps_to_zero)
+            self.send_bluetooth_data(command)
+        self.posicao = 0
+        self.last_slider_value = 0
+        self.atualizar_label()
 
-        
+
 # -----------------------------------------------------------------------------------------------------------------------------------
-#                                                     CLASSE DE TELA DE SALVAMENTO
+#                                                   CLASSE DE TELA DE SALVAMENTO
 # -----------------------------------------------------------------------------------------------------------------------------------
 class SaveScreen(Screen):
     """Tela para selecionar o local e nome do arquivo de salvamento."""
@@ -540,7 +636,7 @@ class SaveScreen(Screen):
         self.manager.get_screen('motor_control')._perform_save(path, filename)
 
 # -----------------------------------------------------------------------------------------------------------------------------------
-#                                                          CLASSES AUXILIARES
+#                                                     CLASSES AUXILIARES
 # -----------------------------------------------------------------------------------------------------------------------------------
 class ConfirmationPopup(Popup):
     """Popup simples para mostrar mensagens de confirmação."""
@@ -565,7 +661,7 @@ class ConfirmationDeletePopup(Popup):
         
         content_layout = BoxLayout(orientation='vertical', padding=dp(10), spacing=dp(10))
         content_layout.add_widget(Label(text="Deseja Excluir Todos os Dados\ne Retornar a Antena para 0° ?",
-                                        halign='center', markup=True))
+                                         halign='center', markup=True))
         
         button_layout = BoxLayout(spacing=dp(10), size_hint_y=None, height=dp(40))
         
@@ -653,7 +749,9 @@ class GraphViewerPopup(Popup):
         btn_close = Button(text='Fechar', size_hint_y=None, height=dp(40), on_release=self.dismiss)
         content_layout.add_widget(btn_close)
         self.content = content_layout
-        self.bind(on_dismiss=lambda instance: os.remove(image_path))
+        # A exclusão no on_dismiss deve ser agendada para garantir que a imagem não seja excluída antes
+        # de ser carregada.
+        self.bind(on_dismiss=lambda instance: Clock.schedule_once(lambda dt: os.remove(image_path) if os.path.exists(image_path) else None, 0.1))
         
 # -----------------------------------------------------------------------------------------------------------------------------------
 #                                                     CLASSE PRINCIPAL DO APP
@@ -662,6 +760,12 @@ class MainApp(App):
     def build(self):
         self.title = "Caracterizador de Antenas"
         
+        # Tenta inicializar as classes Bluetooth JNI logo no início do build
+        if platform == 'android':
+            initialize_bluetooth_classes()
+            # Pede permissões após a inicialização do Kivy e JNI
+            pedir_permissoes_bluetooth() 
+
         sm = ScreenManager()
 
         bluetooth_screen = BluetoothScreen(name='bluetooth_connection')
@@ -678,7 +782,8 @@ class MainApp(App):
 
 
 if __name__ == "__main__":
-    pedir_permissoes_bluetooth() 
+    # Remove a chamada de permissões daqui, ela foi movida para o MainApp.build()
+    # pedir_permissoes_bluetooth() 
 
     MotorControlScreen.passo.defaultvalue = 1
     MainApp().run()
