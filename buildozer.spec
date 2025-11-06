@@ -13,7 +13,7 @@ p4a.fork = kivy
 p4a.branch = master
 p4a.python_version = 3.9
 
-icon.filename = logo2.png
+icon.filename = icon.png
 android.archs = arm64-v8a, armeabi-v7a
 
 orientation = portrait
@@ -29,7 +29,7 @@ android.permissions = \
     android.permission.READ_EXTERNAL_STORAGE,\
     android.permission.WRITE_EXTERNAL_STORAGE
 
-android.api = 33
+android.api = 34
 android.minapi = 26
 android.ndk_api = 26
 android.ndk = 25b
