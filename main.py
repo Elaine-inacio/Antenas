@@ -19,72 +19,12 @@ from kivy.core.window import Window
 from kivy.properties import NumericProperty, StringProperty, ObjectProperty
 
 # -------------------------------------------------------------------------------------------------------------
-#                                           PERMISSÕES ANDROID PARA BLUETOOTH
+#                                                     VARIÁVEIS
 # -------------------------------------------------------------------------------------------------------------
-# Variáveis globais para as classes Android JNI
 BluetoothAdapter = None
 BluetoothDevice = None
 BluetoothSocket = None
 UUID = None
-
-if platform == 'android':
-    try:
-        from android.permissions import request_permissions, Permission # type: ignore
-        from jnius import autoclass # type: ignore
-
-        def pedir_permissoes_bluetooth():
-            """Função para solicitar permissões de Bluetooth em tempo de execução."""
-            # BLUETOOTH_SCAN é importante se o alvo não estiver pareado.
-            # No buildozer.spec já tem BLUETOOTH_CONNECT e ACCESS_FINE_LOCATION
-            required_permissions = [
-                Permission.BLUETOOTH_CONNECT,
-                Permission.ACCESS_FINE_LOCATION,
-                Permission.BLUETOOTH_SCAN # Adicionado para robustez
-            ]
-            
-            try:   
-                request_permissions(required_permissions)
-            except Exception as e:
-                message = f"Erro ao pedir permissões: {e}"
-                popup = ConfirmationPopup(message=message)
-                popup.open()
-
-        def initialize_bluetooth_classes():
-            """Tenta carregar as classes Java Bluetooth após a inicialização do Kivy."""
-            global BluetoothAdapter, BluetoothDevice, BluetoothSocket, UUID
-            try:
-                # Carregamento só acontece se platform == 'android' e jnius for importado
-                BluetoothAdapter = autoclass('android.bluetooth.BluetoothAdapter')
-                BluetoothDevice = autoclass('android.bluetooth.BluetoothDevice')
-                BluetoothSocket = autoclass('android.bluetooth.BluetoothSocket')
-                UUID = autoclass('java.util.UUID')
-                print("Bluetooth JNI classes loaded successfully.")
-                return True
-            except ImportError as e:
-                print(f"Jnius import error: {e}")
-                return False
-            except Exception as e:
-                print(f"Error loading Bluetooth JNI classes: {e}")
-                return False
-
-    except ImportError:
-        # Se jnius ou android.permissions não estiverem disponíveis (mesmo no Android, se o build falhar)
-        def pedir_permissoes_bluetooth():
-            pass
-        def initialize_bluetooth_classes():
-            return False
-            
-else:
-    # Define funções dummy para plataformas não-Android (Desktop)
-    def pedir_permissoes_bluetooth():
-        pass
-    def initialize_bluetooth_classes():
-        return False
-
-# -------------------------------------------------------------------------------------------------------------
-#                                                     VARIÁVEIS
-# -------------------------------------------------------------------------------------------------------------
-
 angles_deg = []
 powers = []
 reference_power = None
@@ -759,31 +699,71 @@ class GraphViewerPopup(Popup):
 class MainApp(App):
     def build(self):
         self.title = "Caracterizador de Antenas"
-        
-        # Tenta inicializar as classes Bluetooth JNI logo no início do build
-        if platform == 'android':
-            initialize_bluetooth_classes()
-            # Pede permissões após a inicialização do Kivy e JNI
-            pedir_permissoes_bluetooth() 
-
         sm = ScreenManager()
-
         bluetooth_screen = BluetoothScreen(name='bluetooth_connection')
         motor_control_screen = MotorControlScreen(name='motor_control')
         save_screen = SaveScreen(name='save_file_screen')
-        
         sm.add_widget(bluetooth_screen)
         sm.add_widget(motor_control_screen)
         sm.add_widget(save_screen)
-        
         sm.current = 'bluetooth_connection'
-
         return sm
-
-
-if __name__ == "__main__":
-    # Remove a chamada de permissões daqui, ela foi movida para o MainApp.build()
-    # pedir_permissoes_bluetooth() 
+        
+    def on_start(self):
+        """Chamado na inicialização"""
+        if platform == 'android':
+            try:
+                from android.permissions import request_permissions, Permission # type: ignore
+                from jnius import autoclass # type: ignore
+    
+                def pedir_permissoes_bluetooth():
+                    """Função para solicitar permissões de Bluetooth em tempo de execução."""
+                    required_permissions = [
+                        Permission.BLUETOOTH,
+                        Permission.BLUETOOTH_CONNECT,
+                        Permission.ACCESS_FINE_LOCATION,
+                        Permission.BLUETOOTH_SCAN,
+                        Permission.BLUETOOTH_ADMIN,
+                        Permission.ACCESS_COARSE_LOCATION,
+                        Permission.READ_EXTERNAL_STORAGE,
+                        Permission.WRITE_EXTERNAL_STORAGE ]
+                    try:    
+                        request_permissions(required_permissions)
+                    except Exception as e:
+                        # Aqui você precisaria de uma forma de mostrar o popup sem depender da instância 'self' 
+                        # ou usar Clock.schedule_once para chamar um método da App
+                        print(f"Erro ao Pedir Permissões: {e}") 
+    
+                def initialize_bluetooth_classes():
+                    """Tenta carregar as classes Java Bluetooth após a inicialização do Kivy."""
+                    global BluetoothAdapter, BluetoothDevice, BluetoothSocket, UUID
+                    try:
+                        # Carregamento só acontece se platform == 'android' e jnius for importado
+                        BluetoothAdapter = autoclass('android.bluetooth.BluetoothAdapter')
+                        BluetoothDevice = autoclass('android.bluetooth.BluetoothDevice')
+                        BluetoothSocket = autoclass('android.bluetooth.BluetoothSocket')
+                        UUID = autoclass('java.util.UUID')
+                        print("Bluetooth JNI classes loaded successfully.")
+                        return True
+                    except ImportError as e:
+                        print(f"Jnius import error: {e}")
+                        return False
+                    except Exception as e:
+                        print(f"Error loading Bluetooth JNI classes: {e}")
+                        return False
+                
+                if initialize_bluetooth_classes():
+                    pedir_permissoes_bluetooth()
+                    
+            except ImportError:
+                pass
+                    
+        else:
+            # Define funções dummy para plataformas não-Android (Desktop)
+            def pedir_permissoes_bluetooth():
+                pass
+            def initialize_bluetooth_classes():
+                return False
 
     MotorControlScreen.passo.defaultvalue = 1
     MainApp().run()
